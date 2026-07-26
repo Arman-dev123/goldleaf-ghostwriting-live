@@ -1,4 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { generateCouponCode } from "./coupon-generator.js";
+import { sendAppointmentConfirmationEmail, sendCouponEmail } from "./email.js";
 
 let isDatabaseConnected: boolean = false;
 let supabaseAdminClient: SupabaseClient | null = null;
@@ -102,6 +104,7 @@ export interface CouponLead {
   name: string;
   email: string;
   phone: string;
+  coupon_code?: string;
   created_at?: string;
 }
 
@@ -111,6 +114,8 @@ export interface LeadSaveResult {
   error?: string;
   warning?: string;
   statusCode?: number;
+  couponCode?: string;
+  emailSent?: boolean;
 }
 
 const memoryContacts: ContactLead[] = [];
@@ -119,156 +124,176 @@ const memoryCoupons: CouponLead[] = [];
 /**
  * Handles inserting a contact form lead.
  * Uses real Supabase with service role key if connected, otherwise falls back to local memory store.
+ * Triggers appointment confirmation email asynchronously without blocking or failing on email errors.
  */
 export async function saveContactLead(lead: ContactLead): Promise<LeadSaveResult> {
   const timestamp = new Date().toISOString();
+  let savedData: any = null;
+  let isFallback = false;
 
   // Fallback if database is not connected
   if (!isDatabaseConnected) {
     console.warn(`[${timestamp}] ⚠️ [Contact Lead] Database disconnected. Saving lead to local in-memory fallback store:`, { name: lead.name, email: lead.email });
-    const mockLead = { ...lead, id: `mock-contact-${Date.now()}`, created_at: timestamp };
-    memoryContacts.push(mockLead);
-    return {
-      success: true,
-      data: mockLead,
-      warning: "Saved locally — database temporarily unavailable"
-    };
-  }
+    savedData = { ...lead, id: `mock-contact-${Date.now()}`, created_at: timestamp };
+    memoryContacts.push(savedData);
+    isFallback = true;
+  } else {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      console.warn(`[${timestamp}] ⚠️ [Contact Lead] Supabase admin client unavailable. Saving lead to local in-memory fallback store.`);
+      savedData = { ...lead, id: `mock-contact-${Date.now()}`, created_at: timestamp };
+      memoryContacts.push(savedData);
+      isFallback = true;
+    } else {
+      try {
+        const timeoutMs = 8000;
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Database insert request timed out after 8 seconds")), timeoutMs)
+        );
 
-  const supabase = getSupabaseAdmin();
-  if (!supabase) {
-    console.warn(`[${timestamp}] ⚠️ [Contact Lead] Supabase admin client unavailable. Saving lead to local in-memory fallback store.`);
-    const mockLead = { ...lead, id: `mock-contact-${Date.now()}`, created_at: timestamp };
-    memoryContacts.push(mockLead);
-    return {
-      success: true,
-      data: mockLead,
-      warning: "Saved locally — database temporarily unavailable"
-    };
-  }
+        const insertPromise = supabase
+          .from("contacts")
+          .insert([{
+            name: lead.name,
+            email: lead.email,
+            phone: lead.phone,
+            service: lead.service,
+            budget: lead.budget,
+            message: lead.message,
+            created_at: timestamp
+          }])
+          .select();
 
-  try {
-    const timeoutMs = 8000;
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Database insert request timed out after 8 seconds")), timeoutMs)
-    );
+        const response: any = await Promise.race([insertPromise, timeoutPromise]);
+        const { data, error } = response;
 
-    const insertPromise = supabase
-      .from("contacts")
-      .insert([{
-        name: lead.name,
-        email: lead.email,
-        phone: lead.phone,
-        service: lead.service,
-        budget: lead.budget,
-        message: lead.message,
-        created_at: timestamp
-      }])
-      .select();
+        if (error) {
+          console.error(`[${timestamp}] ❌ [Supabase Contact Insert Error]:`, error);
+          return {
+            success: false,
+            error: "Failed to save contact details due to a database error. Please try again later.",
+            statusCode: 500
+          };
+        }
 
-    const response: any = await Promise.race([insertPromise, timeoutPromise]);
-    const { data, error } = response;
-
-    if (error) {
-      console.error(`[${timestamp}] ❌ [Supabase Contact Insert Error]:`, error);
-      return {
-        success: false,
-        error: "Failed to save contact details due to a database error. Please try again later.",
-        statusCode: 500
-      };
+        savedData = data?.[0];
+      } catch (err: any) {
+        console.error(`[${timestamp}] ❌ [Contact Save Exception]:`, err);
+        const isTimeout = err.message?.includes("timed out");
+        return {
+          success: false,
+          error: isTimeout
+            ? "Database request timed out. Please try again."
+            : "An error occurred while communicating with the database server.",
+          statusCode: isTimeout ? 503 : 500
+        };
+      }
     }
-
-    return {
-      success: true,
-      data: data?.[0]
-    };
-  } catch (err: any) {
-    console.error(`[${timestamp}] ❌ [Contact Save Exception]:`, err);
-    const isTimeout = err.message?.includes("timed out");
-    return {
-      success: false,
-      error: isTimeout
-        ? "Database request timed out. Please try again."
-        : "An error occurred while communicating with the database server.",
-      statusCode: isTimeout ? 503 : 500
-    };
   }
+
+  // Best-effort non-blocking email confirmation
+  let emailSent = false;
+  try {
+    const emailRes = await sendAppointmentConfirmationEmail(lead.email, lead.name);
+    emailSent = emailRes.success;
+  } catch (emailErr) {
+    console.error(`[${timestamp}] ❌ [Contact Lead Email Catch]:`, emailErr);
+  }
+
+  return {
+    success: true,
+    data: savedData,
+    emailSent,
+    ...(isFallback ? { warning: "Saved locally — database temporarily unavailable" } : {})
+  };
 }
 
 /**
  * Handles inserting a coupon sign-up lead.
+ * Generates a branded coupon code (WORD-WORD-DDDD) and inserts it.
  * Uses real Supabase with service role key if connected, otherwise falls back to local memory store.
+ * Triggers coupon email asynchronously without blocking or failing on email errors.
  */
 export async function saveCouponLead(lead: CouponLead): Promise<LeadSaveResult> {
   const timestamp = new Date().toISOString();
+  const couponCode = generateCouponCode();
+  let savedData: any = null;
+  let isFallback = false;
 
   // Fallback if database is not connected
   if (!isDatabaseConnected) {
-    console.warn(`[${timestamp}] ⚠️ [Coupon Lead] Database disconnected. Saving lead to local in-memory fallback store:`, { name: lead.name, email: lead.email });
-    const mockLead = { ...lead, id: `mock-coupon-${Date.now()}`, created_at: timestamp };
-    memoryCoupons.push(mockLead);
-    return {
-      success: true,
-      data: mockLead,
-      warning: "Saved locally — database temporarily unavailable"
-    };
-  }
+    console.warn(`[${timestamp}] ⚠️ [Coupon Lead] Database disconnected. Saving lead to local in-memory fallback store:`, { name: lead.name, email: lead.email, couponCode });
+    savedData = { ...lead, coupon_code: couponCode, id: `mock-coupon-${Date.now()}`, created_at: timestamp };
+    memoryCoupons.push(savedData);
+    isFallback = true;
+  } else {
+    const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      console.warn(`[${timestamp}] ⚠️ [Coupon Lead] Supabase admin client unavailable. Saving lead to local in-memory fallback store.`);
+      savedData = { ...lead, coupon_code: couponCode, id: `mock-coupon-${Date.now()}`, created_at: timestamp };
+      memoryCoupons.push(savedData);
+      isFallback = true;
+    } else {
+      try {
+        const timeoutMs = 8000;
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Database insert request timed out after 8 seconds")), timeoutMs)
+        );
 
-  const supabase = getSupabaseAdmin();
-  if (!supabase) {
-    console.warn(`[${timestamp}] ⚠️ [Coupon Lead] Supabase admin client unavailable. Saving lead to local in-memory fallback store.`);
-    const mockLead = { ...lead, id: `mock-coupon-${Date.now()}`, created_at: timestamp };
-    memoryCoupons.push(mockLead);
-    return {
-      success: true,
-      data: mockLead,
-      warning: "Saved locally — database temporarily unavailable"
-    };
-  }
+        const insertPromise = supabase
+          .from("coupons")
+          .insert([{
+            name: lead.name,
+            email: lead.email,
+            phone: lead.phone,
+            coupon_code: couponCode,
+            created_at: timestamp
+          }])
+          .select();
 
-  try {
-    const timeoutMs = 8000;
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Database insert request timed out after 8 seconds")), timeoutMs)
-    );
+        const response: any = await Promise.race([insertPromise, timeoutPromise]);
+        const { data, error } = response;
 
-    const insertPromise = supabase
-      .from("coupons")
-      .insert([{
-        name: lead.name,
-        email: lead.email,
-        phone: lead.phone,
-        created_at: timestamp
-      }])
-      .select();
+        if (error) {
+          console.error(`[${timestamp}] ❌ [Supabase Coupon Insert Error]:`, error);
+          return {
+            success: false,
+            error: "Failed to record coupon registration due to a database error. Please try again later.",
+            statusCode: 500
+          };
+        }
 
-    const response: any = await Promise.race([insertPromise, timeoutPromise]);
-    const { data, error } = response;
-
-    if (error) {
-      console.error(`[${timestamp}] ❌ [Supabase Coupon Insert Error]:`, error);
-      return {
-        success: false,
-        error: "Failed to record coupon registration due to a database error. Please try again later.",
-        statusCode: 500
-      };
+        savedData = data?.[0];
+      } catch (err: any) {
+        console.error(`[${timestamp}] ❌ [Coupon Save Exception]:`, err);
+        const isTimeout = err.message?.includes("timed out");
+        return {
+          success: false,
+          error: isTimeout
+            ? "Database request timed out. Please try again."
+            : "An error occurred while communicating with the database server.",
+          statusCode: isTimeout ? 503 : 500
+        };
+      }
     }
-
-    return {
-      success: true,
-      data: data?.[0]
-    };
-  } catch (err: any) {
-    console.error(`[${timestamp}] ❌ [Coupon Save Exception]:`, err);
-    const isTimeout = err.message?.includes("timed out");
-    return {
-      success: false,
-      error: isTimeout
-        ? "Database request timed out. Please try again."
-        : "An error occurred while communicating with the database server.",
-      statusCode: isTimeout ? 503 : 500
-    };
   }
+
+  // Best-effort non-blocking coupon email
+  let emailSent = false;
+  try {
+    const emailRes = await sendCouponEmail(lead.email, lead.name, couponCode);
+    emailSent = emailRes.success;
+  } catch (emailErr) {
+    console.error(`[${timestamp}] ❌ [Coupon Lead Email Catch]:`, emailErr);
+  }
+
+  return {
+    success: true,
+    data: savedData,
+    couponCode,
+    emailSent,
+    ...(isFallback ? { warning: "Saved locally — database temporarily unavailable" } : {})
+  };
 }
 
 /**
