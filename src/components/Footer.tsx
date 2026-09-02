@@ -63,16 +63,8 @@ export function Footer() {
 
             <div className="space-y-3.5 pt-2">
               <div className="flex items-center gap-3 text-sm text-slate-400 hover:text-white transition-colors">
-                <Phone className="h-4.5 w-4.5 text-blue-500" />
-                <a href={`tel:${CMS_CONTENT.contactInfo.phone}`}>{CMS_CONTENT.contactInfo.phone}</a>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-slate-400 hover:text-white transition-colors">
                 <Mail className="h-4.5 w-4.5 text-blue-500" />
-                <a href={`mailto:${CMS_CONTENT.contactInfo.email}`}>{CMS_CONTENT.contactInfo.email}</a>
-              </div>
-              <div className="flex items-start gap-3 text-sm text-slate-400">
-                <MapPin className="h-4.5 w-4.5 text-blue-500 mt-0.5 shrink-0" />
-                <span>{CMS_CONTENT.contactInfo.address}</span>
+                <a href="mailto:goldleafghostwriting@gmail.com">goldleafghostwriting@gmail.com</a>
               </div>
             </div>
           </div>

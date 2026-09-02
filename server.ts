@@ -1,5 +1,7 @@
 import "dotenv/config";
 import express from "express";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { saveContactLead, saveCouponLead, checkDatabaseConnection, getIsDatabaseConnected } from "./src/lib/supabase";
@@ -8,11 +10,40 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.set("trust proxy", 1);
+  app.disable("x-powered-by");
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: "same-origin" },
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+      hsts: process.env.NODE_ENV === "production" ? {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+      } : false,
+    })
+  );
+
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 80,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: {
+        success: false,
+        error: "Too many requests. Please try again later.",
+      },
+    })
+  );
+
   // Run startup connection check for Supabase
   await checkDatabaseConnection();
 
   // Server-side JSON payload parsing
-  app.use(express.json());
+  app.use(express.json({ limit: "1mb" }));
 
   // 1. Contact Lead capture API endpoint
   app.post("/api/contact", async (req, res) => {

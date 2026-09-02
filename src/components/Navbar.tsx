@@ -9,7 +9,7 @@ export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-const isHomeUnscrolled = pathname === "/" && !isScrolled;
+  const isDarkHeroNav = (pathname === "/" || pathname === "/about" || pathname === "/writing-services") && !isScrolled;
   // Monitor scroll height to trigger background coloring
   useEffect(() => {
     const handleScroll = () => {
@@ -98,7 +98,7 @@ const isHomeUnscrolled = pathname === "/" && !isScrolled;
       <Link
   href="/"
   className={`text-sm font-semibold transition-colors ${
-    isHomeUnscrolled ? "text-white hover:text-blue-200" : "text-[#1e40af] hover:text-[#0a192f]"
+    isDarkHeroNav ? "text-white hover:text-blue-200" : "text-[#1e40af] hover:text-[#0a192f]"
   }`}
 >
   Home
@@ -107,7 +107,7 @@ const isHomeUnscrolled = pathname === "/" && !isScrolled;
 <Link
   href="/about"
   className={`text-sm font-semibold transition-colors ${
-    isHomeUnscrolled ? "text-white hover:text-blue-200" : "text-[#1e40af] hover:text-[#0a192f]"
+    isDarkHeroNav ? "text-white hover:text-blue-200" : "text-[#1e40af] hover:text-[#0a192f]"
   }`}
 >
   About
@@ -122,14 +122,8 @@ const isHomeUnscrolled = pathname === "/" && !isScrolled;
           >
             <Link
               href="/writing-services"
-              className={`text-sm font-semibold flex items-center gap-1.5 hover:text-[#1e40af] transition-colors pb-2 ${
-                pathname.startsWith("/writing-services") ||
-pathname.startsWith("/ghostwriting") ||
-pathname.startsWith("/publication") ||
-pathname.startsWith("/cover-design") ||
-pathname.startsWith("/editing")
-  ? "text-[#1e40af]"
-  : "text-[#1e40af]"
+              className={`text-sm font-semibold flex items-center gap-1.5 transition-colors pb-2 ${
+                isDarkHeroNav ? "text-white hover:text-blue-200" : "text-[#1e40af] hover:text-[#0a192f]"
               }`}
             >
               <span>Writing Services</span>
@@ -182,10 +176,8 @@ pathname.startsWith("/editing")
           {/* Packages */}
           <Link
             href="/packages"
-            className={`text-sm font-semibold hover:text-[#1e40af] transition-colors ${
-              pathname === "/packages"
-  ? "text-[#1e40af]"
-  : "text-[#1e40af]"
+            className={`text-sm font-semibold transition-colors ${
+              isDarkHeroNav ? "text-white hover:text-blue-200" : "text-[#1e40af] hover:text-[#0a192f]"
             }`}
           >
             Packages
@@ -194,8 +186,14 @@ pathname.startsWith("/editing")
           {/* Contact Us */}
           <Link
             href="/contact"
-            className={`text-sm font-semibold hover:text-[#1e40af] transition-colors ${
-              pathname === "/contact" ? "text-[#1e40af]" : isScrolled ? "text-slate-700" : "text-slate-200"
+            className={`text-sm font-semibold transition-colors ${
+              pathname === "/contact" || pathname === "/packages"
+                ? "text-[#1e40af] hover:text-[#0a192f]"
+                : isDarkHeroNav
+                  ? "text-white hover:text-blue-200"
+                  : isScrolled
+                    ? "text-slate-700 hover:text-[#0a192f]"
+                    : "text-slate-200 hover:text-blue-200"
             }`}
           >
             Contact Us
@@ -206,11 +204,7 @@ pathname.startsWith("/editing")
         <div className="hidden lg:block">
           <Link
             href="/contact"
-            className={`px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-1.5 ${
-              isScrolled
-                ? "bg-[#1e40af] hover:bg-[#0a192f] text-white shadow-blue-200"
-                : "bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20"
-            }`}
+            className="px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg transition-all active:scale-95 flex items-center gap-1.5 bg-[#1e40af] hover:bg-[#0a192f] text-white shadow-blue-200 border border-[#1e40af]/20"
           >
             <Sparkles className="h-3.5 w-3.5" />
             <span>Get Free Consultation</span>

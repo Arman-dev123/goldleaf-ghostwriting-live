@@ -40,69 +40,8 @@ export default function ContactPage() {
 
             {/* Coordinates list */}
             <div className="space-y-4 bg-slate-50 p-6 rounded-2xl border border-slate-100">
-              <div className="flex gap-4 items-start text-slate-700">
-                <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl mt-0.5">
-                  <Phone className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500">
-                    Phone Inquiries
-                  </h4>
-                  <a
-                    href={`tel:${CMS_CONTENT.contactInfo.phone}`}
-                    className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors"
-                  >
-                    {CMS_CONTENT.contactInfo.phone}
-                  </a>
-                  <span className="block text-[11px] text-slate-400">Toll-free across North America</span>
-                </div>
-              </div>
-
-              <div className="flex gap-4 items-start text-slate-700 pt-3 border-t border-slate-200/50">
-                <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl mt-0.5">
-                  <Mail className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500">
-                    Secure Email
-                  </h4>
-                  <a
-                    href={`mailto:${CMS_CONTENT.contactInfo.email}`}
-                    className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors"
-                  >
-                    {CMS_CONTENT.contactInfo.email}
-                  </a>
-                  <span className="block text-[11px] text-slate-400">Response guaranteed in under 2 hours</span>
-                </div>
-              </div>
-
-              <div className="flex gap-4 items-start text-slate-700 pt-3 border-t border-slate-200/50">
-                <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl mt-0.5">
-                  <MapPin className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500">
-                    Manhattan Headquarters
-                  </h4>
-                  <span className="text-sm font-bold text-slate-900 block leading-snug">
-                    {CMS_CONTENT.contactInfo.address}
-                  </span>
-                  <span className="block text-[11px] text-slate-400">Consultations available by private booking only</span>
-                </div>
-              </div>
-
-              <div className="flex gap-4 items-start text-slate-700 pt-3 border-t border-slate-200/50">
-                <div className="p-2.5 bg-blue-100 text-blue-600 rounded-xl mt-0.5">
-                  <Clock className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-500">
-                    Business Hours
-                  </h4>
-                  <span className="text-sm font-bold text-slate-900 block">
-                    {CMS_CONTENT.contactInfo.businessHours}
-                  </span>
-                </div>
+              <div className="text-slate-500 text-sm italic">
+                Contact details removed as requested.
               </div>
             </div>
 
