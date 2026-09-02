@@ -9,7 +9,7 @@ export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-
+const isHomeUnscrolled = pathname === "/" && !isScrolled;
   // Monitor scroll height to trigger background coloring
   useEffect(() => {
     const handleScroll = () => {
@@ -95,28 +95,23 @@ export function Navbar() {
 
         {/* Desktop Navigation Links */}
         <nav className="hidden lg:flex items-center gap-8">
-          {/* Home */}
-          <Link
-            href="/"
-           className={`text-sm font-semibold hover:text-[#0a192f] transition-colors ${
-  pathname === "/"
-    ? "text-[#1e40af]"
-    : "text-[#1e40af]"
-}`}
-          >
-            Home
-          </Link>
+      <Link
+  href="/"
+  className={`text-sm font-semibold transition-colors ${
+    isHomeUnscrolled ? "text-white hover:text-blue-200" : "text-[#1e40af] hover:text-[#0a192f]"
+  }`}
+>
+  Home
 
-          {/* About */}
-          <Link
-            href="/about"
-           className={`text-sm font-semibold hover:text-[#0a192f] transition-colors ${
-  pathname === "/"
-    ? "text-[#1e40af]"
-    : "text-[#1e40af]"
-}`}
-          >
-            About
+          </Link>
+<Link
+  href="/about"
+  className={`text-sm font-semibold transition-colors ${
+    isHomeUnscrolled ? "text-white hover:text-blue-200" : "text-[#1e40af] hover:text-[#0a192f]"
+  }`}
+>
+  About
+
           </Link>
 
           {/* Writing Services Megamenu Trigger */}
